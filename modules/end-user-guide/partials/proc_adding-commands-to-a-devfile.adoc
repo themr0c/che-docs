@@ -1,0 +1,199 @@
+[id="proc_adding-commands-to-a-devfile_{context}"]
+= Adding commands to a devfile
+
+[role="_abstract"]
+A devfile allows to specify commands to be available for execution in a workspace. Every command contain a subset of actions, which are related to a specific component in whose container it will be executed.
+
+.Prerequisites
+
+* xref:adding-schema-version-to-a-devfile.adoc[]
+* xref:adding-a-name-to-a-devfile.adoc[]
+* xref:adding-projects-to-a-devfile.adoc[]
+
+
+.Procedure
+
+. Add a `commands` section in the devfile, containing a list of one or more commands.
+
+. For each command, define an unique value for the mandatory `name` attribute.
+
+. For each command, define a list of `actions`.
+
+. For each action, define the mandatory `type` attribute:
++
+.Values for the `commands` `actions` `type` attribute
+[cols="1,2", options="header"]
+|===
+|Value | Description
+
+|`exec`
+|Define a command to execute in the associated `component`.
+
+|`vscode-task`
+|Define a task in the editor.
+
+|`vscode-launch`
+|Define a run and debug configuration in the editor.
+|===
++
+.A simple `exec` command
+====
+[source,yaml]
+----
+commands:
+  - name: build
+    actions:
+      - type: exec
+        component: mysql
+        command: mvn clean
+        workdir: /projects/spring-petclinic
+----
+====
+
+. For each `exec` action, specify attributes defining the command to run using the default shell in the associated `component`.
++
+.Attributes for an `exec` command
+[cols="1,1,2", options="header"]
+|===
+|Attribute |Required |Description
+
+|`command`
+|mandatory
+|The command to execute. A command can have only one action.
+
+|`component`
+|mandatory
+|The value of the mandatory `alias` attribute of the `component` that executes the command.
+
+|`workdir`
+|optional
+|The working directory to execute the command.
+|===
++
+.A detailled `exec` command
+====
+[source,yaml]
+----
+apiVersion: 1.0.0
+metadata:
+  name: MyDevfile
+projects:
+  - name: my-go-project
+    clonePath: go/src/github.com/acme/my-go-project
+    source:
+      type: git
+      location: https://github.com/acme/my-go-project.git
+components:
+  - type: dockerimage
+    image: golang
+    alias: go-cli
+    memoryLimit: 512Mi
+    mountSources: true
+    command: ['sleep', 'infinity']
+    env:
+      - name: GOPATH
+        value: $(CHE_PROJECTS_ROOT)/go
+      - name: GOCACHE
+        value: /tmp/go-cache
+commands:
+  - name: compile and run
+    actions:
+     - type: exec
+       component: go-cli
+       command: “go get -d && go run main.go”
+       workdir: “${CHE_PROJECTS_ROOT}/src/github.com/acme/my-go-project”
+----
+====
+
+. For each `vscode-task` or `vscode-launch` action, specify attributes defining the command to run using the editor. Che-Theia editor understands the `tasks.json` and `launch.json` files provided in the devfile.
++
+.Attributes for a `vscode-task` or `vscode-launch` command
+[cols="1,1,2", options="header"]
+|===
+|Attribute |Required |Description
+
+|`name`
+|mandatory
+|Name of the action.
+
+|`referenceContent`
+|define this or `reference`
+|Content of the `tasks.json` or `launch.json` file.
+
+|reference
+|define this or `referenceContent`
+| Relative or absolute URL pointing to the `tasks.json` or `launch.json` file.
+|===
++
+[WARNING]
+====
+The availability of this feature using another editor than the default Che-Theia editor depends on the integration code available in the workspace editor.
+====
++
+.A detailled `vscode-task` command
+====
+[source,yaml]
+----
+
+
+apiVersion: 1.0.0
+metadata:
+  name: MyDevfile
+projects:
+  - name: my-go-project
+    clonePath: go/src/github.com/acme/my-go-project
+    source:
+      type: git
+      location: https://github.com/acme/my-go-project.git
+commands:
+  - name: tasks
+    actions:
+      - type: vscode-task
+        referenceContent: >
+            {
+                "version": "2.0.0",
+                "tasks": [
+                    {
+                        "label": "create test file",
+                        "type": "shell",
+                        "command": "touch ${workspaceFolder}/test.file"
+                    }
+                ]
+            }
+----
+====
+
+. For each command exposing a web user interface, define an optional preview URL using the `previewUrl` attribute.
++
+.Attributes for `previewUrl` 
+[cols="1,1,1,2", options="header"]
+|===
+|Attribute |Required |Default |Description
+
+|`port`
+|mandatory
+|undefined
+|TCP port where the application listens.
+
+|`path`
+|optional
+|`/`
+|The path part of the URL to the UI
+|===
++
+.A `command` with `previewUrl`
+====
+[source,yaml]
+----
+commands:
+    - name: tasks
+      previewUrl:
+        port: 8080     
+        path: /myweb   
+      actions:
+      - type: exec
+        component: go-cli
+        command: "go run webserver.go"
+        workdir: ${CHE_PROJECTS_ROOT}/webserver
+----
+====
